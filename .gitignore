@@ -1,0 +1,18 @@
+# Ambiente virtual
+venv/
+
+# Arquivos de compilação
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Arquivos de log
+*.log
+
+# Arquivos de configuração do sistema
+.DS_Store
+Thumbs.db
+
+# Ignorar o arquivo de variaveis
+.env
