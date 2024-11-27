@@ -32,49 +32,53 @@ def fazer_consulta(TIPO, start_date, end_date):
     if TIPO == "Controle de Estoque":
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d') + " 23:59:59"
+        company = os.getenv('COMPANY')
         sql = f""" 
-            WITH tarefas_filtradas AS (
-                SELECT 
-                    idtarefa,
-                    TO_TIMESTAMP(dataconclusao, 'DD/MM/YYYY HH24:MI:SS')::DATE AS dataconclusao,
-                    tecnico
-                FROM 
-                    tarefas
-                WHERE 
-                    TO_TIMESTAMP(dataconclusao, 'DD/MM/YYYY HH24:MI:SS') BETWEEN '2024-11-20' AND '2024-11-26' 
-                    AND company = '43083'
-            ),
-            solicitantes AS (
-                SELECT 
-                    idtarefa,
-                    TRIM(SPLIT_PART(valor, 'Solicitado por: ', 2)) AS solicitante
-                FROM 
-                    atividades
-                WHERE 
-                    secao = 'Entrega e assinatura do solicitante'
-                    AND campo = 'solicitante'
-                    AND company = '43083'
-            )
+        WITH tarefas_filtradas AS (
             SELECT 
-                atividades.item,
-                tarefas_filtradas.dataconclusao,
-                solicitantes.solicitante,
-                atividades.campo,
-                atividades.valor
+                idtarefa,
+                TO_TIMESTAMP(dataconclusao, 'DD/MM/YYYY HH24:MI:SS')::DATE AS dataconclusao,
+                tecnico
+            FROM 
+                tarefas
+            WHERE 
+                TO_TIMESTAMP(dataconclusao, 'DD/MM/YYYY HH24:MI:SS') BETWEEN '{start_date_str}' AND '{end_date_str}'
+                AND company =  '{company}'
+                AND atividade = 'ativ_separacaoeentregamaterial'
+        ),
+        solicitantes AS (
+            SELECT 
+                idtarefa,
+                TRIM(SPLIT_PART(valor, 'Solicitado por: ', 2)) AS solicitante
             FROM 
                 atividades
-            JOIN 
-                tarefas_filtradas 
-            ON 
-                atividades.idtarefa = tarefas_filtradas.idtarefa
-            LEFT JOIN 
-                solicitantes
-            ON 
-                atividades.idtarefa = solicitantes.idtarefa
             WHERE 
-                atividades.campo IN ('Quantidade Separada', 'valorunidadeqtd')
-                AND atividades.company = '43083';
+                secao = 'Entrega e assinatura do solicitante'
+                AND campo = 'solicitante'
+                AND company =  '{company}'
+                AND descricao_atividade = 'ativ_separacaoeentregamaterial'        
+        )
+        SELECT 
+            atividades.item,
+            tarefas_filtradas.dataconclusao,
+            solicitantes.solicitante,
+            atividades.campo,
+            atividades.valor
+        FROM 
+            atividades
+        JOIN 
+            tarefas_filtradas 
+        ON 
+            atividades.idtarefa = tarefas_filtradas.idtarefa
+        LEFT JOIN 
+            solicitantes
+        ON 
+            atividades.idtarefa = solicitantes.idtarefa
+        WHERE 
+            atividades.campo IN ('Quantidade Separada', 'valorunidadeqtd')
+            AND atividades.company =  '{company}';
         """
+
         df = pd.read_sql_query(sql, Supabase.conexao)
         df = df.groupby(['item', 'dataconclusao', 'solicitante', 'campo'])['valor'].first().unstack()
         df.reset_index(inplace=True)
